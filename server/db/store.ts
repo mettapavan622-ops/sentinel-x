@@ -51,6 +51,10 @@ class DataStore {
           };
         }
       }
+
+      if (this.state.repositories.length === 0) {
+        this.seedInitialData();
+      }
     } catch (err) {
       console.warn('[DataStore] .sentinel-data.json could not be loaded, re-initializing store:', err);
       // fallback to memory and re-seed
@@ -74,12 +78,22 @@ class DataStore {
   }
 
   /**
-   * Reset the local datastore to an empty state.
-   * SENTINEL-X intentionally ships without a bundled demo repository.
+   * Reset the local datastore to default state with the active workspace repository.
    */
   public seedInitialData(): void {
+    const defaultRepo: Repository = {
+      id: 'repo-sentinel-x',
+      name: 'sentinel-x (workspace)',
+      path: process.cwd(),
+      defaultBranch: 'main',
+      currentScore: 100,
+      preventionModeEnabled: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
     this.state = {
-      repositories: [],
+      repositories: [defaultRepo],
       scans: [],
       findings: [],
       remediationActions: [],

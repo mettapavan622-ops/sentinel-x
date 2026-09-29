@@ -134,12 +134,12 @@ export function analyzeGitHistoryInRepository(
     const exposed = commits.filter((c) => c.patch.includes(secret));
     if (exposed.length === 0) return fallback;
 
-    const historicalCommits = exposed.map((c, index) => ({
+    const historicalCommits: GitExposureTimeline['historicalCommits'] = exposed.map((c, index) => ({
       hash: c.hash.slice(0, 12),
       date: c.date,
       author: c.author,
       message: c.message,
-      action: index === 0 ? 'INTRODUCED' as const : 'MODIFIED' as const,
+      action: index === 0 ? 'INTRODUCED' : 'MODIFIED',
     }));
 
     let isPresentInCurrentCommit = true;

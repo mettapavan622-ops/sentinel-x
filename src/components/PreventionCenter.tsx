@@ -21,7 +21,7 @@ export const PreventionCenter: React.FC = () => {
 import { S3Client } from "@aws-sdk/client-s3";
 
 // HARDCODED AWS CREDENTIAL
-export const AWS_ACCESS_KEY_ID = "AWS_DEMO_ACCESS_KEY_REPLACE_ME";
+export const AWS_ACCESS_KEY_ID = "AKIAIOSFODNN7EXAMPLE";
 export const AWS_SECRET_ACCESS_KEY = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY";
 
 export const s3 = new S3Client({
@@ -40,7 +40,7 @@ export const s3 = new S3Client({
 import { S3Client } from "@aws-sdk/client-s3";
 
 // HARDCODED AWS CREDENTIAL
-export const AWS_ACCESS_KEY_ID = "AWS_DEMO_ACCESS_KEY_REPLACE_ME";
+export const AWS_ACCESS_KEY_ID = "AKIAIOSFODNN7EXAMPLE";
 export const AWS_SECRET_ACCESS_KEY = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY";
 
 export const s3 = new S3Client({

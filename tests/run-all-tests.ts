@@ -76,7 +76,7 @@ async function runTests() {
     assert(!realCtx.isInDocumentation && !realCtx.isPlaceholderOrExample && realCtx.contextScore > 0.7, 'Real Production Context Scored High');
 
     const docsAwsValue = 'AK' + 'IA' + 'EXAMPLEPLACEHOLDER01';
-    const docsCode = `\\`\\`\\`bash\nexport AWS_ACCESS_KEY="${docsAwsValue}"\n\\`\\`\\``;
+    const docsCode = '```bash\nexport AWS_ACCESS_KEY="' + docsAwsValue + '"\n```';
     const docsCtx = analyzeContext('docs/guide.md', 2, docsCode, docsAwsValue);
     assert(docsCtx.isInDocumentation && docsCtx.isPlaceholderOrExample && docsCtx.contextScore < 0.4, 'Documentation Placeholder Detected as False Positive Candidate');
 

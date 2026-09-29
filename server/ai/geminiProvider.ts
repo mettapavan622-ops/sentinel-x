@@ -4,7 +4,7 @@ import { AIAnalysisResult } from '../../src/types';
 import { LocalFallbackProvider } from './localFallbackProvider';
 
 export class GeminiProvider implements AIProvider {
-  private model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  private model = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
   public name = `Google Gemini (${this.model})`;
   private fallback: LocalFallbackProvider;
   private client: GoogleGenAI | null = null;
@@ -26,6 +26,15 @@ export class GeminiProvider implements AIProvider {
         this.client = null;
       }
     }
+  }
+
+  private withTimeout<T>(promise: Promise<T>, timeoutMs = 8000): Promise<T> {
+    return Promise.race([
+      promise,
+      new Promise<T>((_, reject) =>
+        setTimeout(() => reject(new Error(`AI operation timed out after ${timeoutMs}ms`)), timeoutMs)
+      ),
+    ]);
   }
 
   public async analyzeFinding(input: FindingAnalysisInput): Promise<AIAnalysisResult> {
@@ -55,44 +64,46 @@ ${input.contextSnippet}
 
 Return structured JSON evaluating whether this is an active credential or documentation/test placeholder. Do NOT claim the credential is verified active on the remote server; speak in terms of probable risk, syntactic validity, and potential exposure.`;
 
-      const response = await this.client.models.generateContent({
-        model: this.model,
-        contents: prompt,
-        config: {
-          responseMimeType: 'application/json',
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              classification: {
-                type: Type.STRING,
-                description: 'true_positive | likely_positive | false_positive | uncertain',
+      const response = await this.withTimeout(
+        this.client.models.generateContent({
+          model: this.model,
+          contents: prompt,
+          config: {
+            responseMimeType: 'application/json',
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                classification: {
+                  type: Type.STRING,
+                  description: 'true_positive | likely_positive | false_positive | uncertain',
+                },
+                confidence: {
+                  type: Type.NUMBER,
+                  description: 'Confidence between 0.0 and 1.0',
+                },
+                reason: {
+                  type: Type.STRING,
+                  description: 'Detailed threat explanation and reasoning',
+                },
+                riskLevel: {
+                  type: Type.STRING,
+                  description: 'CRITICAL | HIGH | MEDIUM | LOW | INFO',
+                },
+                recommendedAction: {
+                  type: Type.STRING,
+                  description: 'rotate_and_remove | verify_permissions | mark_as_test_fixture | dismiss_false_positive',
+                },
+                detailedRemediationSteps: {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                  description: 'List of actionable remediation steps',
+                },
               },
-              confidence: {
-                type: Type.NUMBER,
-                description: 'Confidence between 0.0 and 1.0',
-              },
-              reason: {
-                type: Type.STRING,
-                description: 'Detailed threat explanation and reasoning',
-              },
-              riskLevel: {
-                type: Type.STRING,
-                description: 'CRITICAL | HIGH | MEDIUM | LOW | INFO',
-              },
-              recommendedAction: {
-                type: Type.STRING,
-                description: 'rotate_and_remove | verify_permissions | mark_as_test_fixture | dismiss_false_positive',
-              },
-              detailedRemediationSteps: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING },
-                description: 'List of actionable remediation steps',
-              },
+              required: ['classification', 'confidence', 'reason', 'riskLevel', 'recommendedAction', 'detailedRemediationSteps'],
             },
-            required: ['classification', 'confidence', 'reason', 'riskLevel', 'recommendedAction', 'detailedRemediationSteps'],
           },
-        },
-      });
+        })
+      );
 
       const parsed = JSON.parse(response.text?.trim() || '{}');
       return {
@@ -128,10 +139,13 @@ User Query:
 
 Provide a concise, highly technical, and actionable cybersecurity response using markdown formatting. Explain risk levels, blast radius, potential attack paths, and remediation instructions clearly.`;
 
-      const response = await this.client.models.generateContent({
-        model: this.model,
-        contents: prompt,
-      });
+      const response = await this.withTimeout(
+        this.client.models.generateContent({
+          model: this.model,
+          contents: prompt,
+        }),
+        8000
+      );
 
       return response.text?.trim() || (await this.fallback.generateChatResponse(input));
     } catch {
