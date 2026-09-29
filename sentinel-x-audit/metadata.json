@@ -1,0 +1,6 @@
+{
+  "name": "SENTINEL-X",
+  "description": "AI-Powered Secret Leak Detection & Prevention Agent — Detect, Understand, Trace, Fix, and Prevent credential exposures.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

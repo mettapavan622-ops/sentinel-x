@@ -1,0 +1,154 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum RiskLevel {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+  INFO
+}
+
+enum FindingStatus {
+  OPEN
+  IN_REMEDIATION
+  REMEDIATED
+  FALSE_POSITIVE
+  IGNORED
+}
+
+enum FindingClassification {
+  TRUE_POSITIVE
+  LIKELY_POSITIVE
+  FALSE_POSITIVE
+  UNCERTAIN
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  role      String   @default("security_engineer")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Repository {
+  id                    String          @id @default(uuid())
+  name                  String
+  path                  String
+  defaultBranch         String          @default("main")
+  lastScannedAt         DateTime?
+  currentScore          Int             @default(100)
+  preventionModeEnabled Boolean         @default(true)
+  scans                 Scan[]
+  findings              Finding[]
+  securityScores        SecurityScore[]
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+}
+
+model Scan {
+  id                  String    @id @default(uuid())
+  repositoryId        String
+  repository          Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  status              String    @default("COMPLETED")
+  filesScanned        Int       @default(0)
+  commitsScanned      Int       @default(0)
+  findingsCount       Int       @default(0)
+  criticalCount       Int       @default(0)
+  highCount           Int       @default(0)
+  mediumCount         Int       @default(0)
+  lowCount            Int       @default(0)
+  infoCount           Int       @default(0)
+  securityScoreBefore Int       @default(100)
+  securityScoreAfter  Int?
+  startedAt           DateTime  @default(now())
+  completedAt         DateTime?
+  findings            Finding[]
+}
+
+model Finding {
+  id                 String                @id @default(uuid())
+  scanId             String
+  scan               Scan                  @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  repositoryId       String
+  repository         Repository            @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  detectorType       String
+  secretCategory     String
+  filePath           String
+  lineNumber         Int
+  commitHash         String?
+  firstSeen          String
+  lastSeen           String
+  confidence         Float                 @default(0.0)
+  riskLevel          RiskLevel             @default(HIGH)
+  status             FindingStatus         @default(OPEN)
+  classification     FindingClassification @default(TRUE_POSITIVE)
+  redactedValue      String
+  contextSnippet     String
+  attackPath         Json
+  gitExposure        Json
+  entropyScore       Json
+  contextAnalysis    Json
+  aiAnalysis         Json?
+  remediationActions RemediationAction[]
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+}
+
+model Commit {
+  id             String   @id @default(uuid())
+  repositoryId   String
+  commitHash     String   @unique
+  author         String
+  date           DateTime
+  message        String
+  hadSecrets     Boolean  @default(false)
+  secretsCount   Int      @default(0)
+  createdAt      DateTime @default(now())
+}
+
+model RemediationAction {
+  id          String    @id @default(uuid())
+  findingId   String
+  finding     Finding   @relation(fields: [findingId], references: [id], onDelete: Cascade)
+  actionType  String
+  status      String    @default("COMPLETED")
+  details     Json
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+}
+
+model SecurityScore {
+  id           String     @id @default(uuid())
+  repositoryId String
+  repository   Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  score        Int
+  breakdown    Json
+  calculatedAt DateTime   @default(now())
+}
+
+model ChatConversation {
+  id           String        @id @default(uuid())
+  title        String
+  repositoryId String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  messages     ChatMessage[]
+}
+
+model ChatMessage {
+  id             String           @id @default(uuid())
+  conversationId String
+  conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String
+  content        String
+  createdAt      DateTime         @default(now())
+}
