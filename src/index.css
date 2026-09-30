@@ -1,1 +1,55 @@
 @import "tailwindcss";
+
+@media print {
+  /* Hide all background and navigation elements */
+  body, html {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .no-print,
+  header,
+  nav,
+  main,
+  footer,
+  aside,
+  #btn-trigger-scan,
+  #btn-open-assistant {
+    display: none !important;
+  }
+
+  /* Make the printable report full-bleed white background with crisp black text */
+  #sentinel-printable-report {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 1.5cm !important;
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  #sentinel-printable-report * {
+    color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  #sentinel-printable-report tr {
+    page-break-inside: avoid;
+  }
+
+  #sentinel-printable-report table {
+    border-collapse: collapse !important;
+  }
+
+  #sentinel-printable-report th,
+  #sentinel-printable-report td {
+    border-bottom: 1px solid #cbd5e1 !important;
+  }
+}

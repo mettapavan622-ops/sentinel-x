@@ -190,6 +190,101 @@ async function runTests() {
     assert(passedRes.blocked === false && passedRes.exitCode === 0, 'Prevention Mode Passes Clean Environment Variable Commit');
   }
 
+  // Test Group 8: Report Generation & CSV Export
+  console.log('\n🔹 [8/8] Testing Report Generation & RFC-4180 CSV Export...');
+  {
+    const { exportFindingsToCSV } = await import('../src/utils/exportReport');
+    let generatedContent = '';
+    let generatedFilename = '';
+
+    const origBlob = globalThis.Blob;
+    const origURL = globalThis.URL;
+    const origDoc = globalThis.document;
+
+    globalThis.Blob = class MockBlob {
+      content: string[];
+      constructor(content: string[]) {
+        this.content = content;
+        generatedContent = content.join('');
+      }
+    } as any;
+
+    globalThis.URL = {
+      createObjectURL: () => 'blob:mock-url',
+      revokeObjectURL: () => {},
+    } as any;
+
+    globalThis.document = {
+      createElement: () => ({
+        setAttribute: (k: string, v: string) => {
+          if (k === 'download') generatedFilename = v;
+        },
+        click: () => {},
+        style: {},
+      }),
+      body: {
+        appendChild: () => {},
+        removeChild: () => {},
+      },
+    } as any;
+
+    const mockFindings: Finding[] = [
+      {
+        id: 'finding-rep-1',
+        scanId: 'scan-1',
+        repositoryId: 'repo-1',
+        detectorType: 'AWS Access Key ID',
+        secretCategory: 'AWS_CREDENTIAL',
+        filePath: 'src/aws.ts',
+        lineNumber: 10,
+        confidence: 0.99,
+        entropyScore: { entropy: 4.8, normalizedScore: 0.9, characterSetSize: 36, isHighEntropy: true },
+        contextAnalysis: {
+          isAssignment: true,
+          isInTestFile: false,
+          isInDocumentation: false,
+          isInExampleFile: false,
+          isPlaceholderOrExample: false,
+          isReferencedInCode: true,
+          contextScore: 0.9,
+          signals: [],
+        },
+        riskLevel: 'CRITICAL',
+        status: 'OPEN',
+        classification: 'true_positive',
+        redactedValue: 'AKIA************7EXA',
+        contextSnippet: 'const key = "AKIA...";',
+        attackPath: { summary: 'AWS cloud account takeover', estimatedBlastRadius: 'INFRASTRUCTURE', nodes: [], edges: [] },
+        gitExposure: {
+          firstSeenCommit: 'c1',
+          firstSeenDate: '2026-09-29',
+          firstSeenAuthor: 'dev',
+          lastSeenCommit: 'c1',
+          lastSeenDate: '2026-09-29',
+          commitCount: 1,
+          isPresentInCurrentCommit: true,
+          isRemovedInHead: false,
+          branches: ['main'],
+          historicalCommits: [],
+        },
+        createdAt: '2026-09-29T00:00:00Z',
+        updatedAt: '2026-09-29T00:00:00Z',
+        firstSeen: '2026-09-29T00:00:00Z',
+        lastSeen: '2026-09-29T00:00:00Z',
+      },
+    ];
+
+    exportFindingsToCSV(mockFindings, 'demo-repo');
+
+    assert(generatedContent.includes('Finding ID,Risk Level,Status'), 'CSV Contains RFC Header Columns');
+    assert(generatedContent.includes('finding-rep-1') && generatedContent.includes('CRITICAL'), 'CSV Formats Finding Rows Correctly');
+    assert(generatedFilename.startsWith('sentinel-x-findings-demo-repo-'), 'CSV Generates Valid Audit Filename');
+
+    globalThis.Blob = origBlob;
+    globalThis.URL = origURL;
+    globalThis.document = origDoc;
+  }
+
   console.log('\n============================================================');
   console.log(`TEST SUMMARY: ${passed} PASSED | ${failed} FAILED`);
   console.log('============================================================\n');

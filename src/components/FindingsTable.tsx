@@ -10,19 +10,26 @@ import {
   ExternalLink,
   ChevronRight,
   Filter,
+  FileSpreadsheet,
+  FileText,
 } from 'lucide-react';
 import { Finding, RiskLevel, FindingStatus, FindingClassification } from '../types';
+import { exportFindingsToCSV } from '../utils/exportReport';
 
 interface FindingsTableProps {
   findings: Finding[];
   onSelectFinding: (finding: Finding) => void;
   selectedFindingId?: string;
+  repositoryName?: string;
+  onOpenReportModal?: () => void;
 }
 
 export const FindingsTable: React.FC<FindingsTableProps> = ({
   findings,
   onSelectFinding,
   selectedFindingId,
+  repositoryName,
+  onOpenReportModal,
 }) => {
   const [filterRisk, setFilterRisk] = useState<string>('ALL');
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
@@ -45,6 +52,12 @@ export const FindingsTable: React.FC<FindingsTableProps> = ({
     }
     return true;
   });
+
+  const handleDownloadCSV = () => {
+    // Export currently filtered findings if any filter is active, otherwise all findings
+    const targetFindings = filteredFindings.length > 0 ? filteredFindings : findings;
+    exportFindingsToCSV(targetFindings, repositoryName || 'sentinel-x');
+  };
 
   const getRiskBadge = (level: RiskLevel) => {
     switch (level) {
@@ -124,6 +137,31 @@ export const FindingsTable: React.FC<FindingsTableProps> = ({
             <option value="REMEDIATED">Remediated</option>
             <option value="FALSE_POSITIVE">False Positives</option>
           </select>
+
+          {/* Export Report Actions */}
+          <div className="flex items-center gap-1.5 ml-auto sm:ml-2">
+            <button
+              id="btn-download-csv"
+              onClick={handleDownloadCSV}
+              className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 hover:border-slate-600 transition-colors cursor-pointer shadow-sm"
+              title="Download findings report as CSV"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Download CSV</span>
+            </button>
+
+            {onOpenReportModal && (
+              <button
+                id="btn-export-pdf"
+                onClick={onOpenReportModal}
+                className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md bg-cyan-950/70 hover:bg-cyan-900 text-cyan-300 border border-cyan-800 hover:border-cyan-700 transition-colors cursor-pointer shadow-sm"
+                title="Open executive report & export as PDF"
+              >
+                <FileText className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Export PDF</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

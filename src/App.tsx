@@ -6,8 +6,10 @@ import { FindingDetailModal } from './components/FindingDetailModal';
 import { GitHistoryView } from './components/GitHistoryView';
 import { PreventionCenter } from './components/PreventionCenter';
 import { AIAssistantDrawer } from './components/AIAssistantDrawer';
+import { ReportModal } from './components/ReportModal';
 import { Repository, Finding, SecurityScoreRecord } from './types';
-import { Upload, ShieldCheck, AlertCircle, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Upload, ShieldCheck, AlertCircle, Sparkles, CheckCircle2, FileSpreadsheet, FileText } from 'lucide-react';
+import { exportFindingsToCSV } from './utils/exportReport';
 
 export default function App() {
   const [repository, setRepository] = useState<Repository | null>(null);
@@ -19,6 +21,7 @@ export default function App() {
   const [isScanning, setIsScanning] = useState<boolean>(false);
   const [isRemediating, setIsRemediating] = useState<boolean>(false);
   const [isAssistantOpen, setIsAssistantOpen] = useState<boolean>(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
   const [notification, setNotification] = useState<string | null>(null);
   const repositoryId = repository?.id;
 
@@ -160,57 +163,82 @@ export default function App() {
                     SENTINEL-X will extract it, inspect the files, and analyze exposed secrets.
                   </p>
                 </div>
-                <label className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-cyan-500 text-slate-950 text-xs font-bold cursor-pointer hover:bg-cyan-400 transition-colors">
-                  <Upload className="w-4 h-4" />
-                  {isScanning ? 'Scanning...' : 'Upload ZIP & Scan'}
-                  <input
-                    type="file"
-                    accept=".zip,application/zip"
-                    className="hidden"
-                    disabled={isScanning}
-                    onChange={async (event) => {
-                      const file = event.target.files?.[0];
-                      event.target.value = '';
-                      if (!file) return;
-                      if (file.size > 50 * 1024 * 1024) {
-                        showNotification('ZIP is too large. Maximum upload size is 50 MB.');
-                        return;
-                      }
-                      setIsScanning(true);
-                      showNotification(`Uploading ${file.name}...`);
-                      try {
-                        const uploadRes = await fetch('/api/repositories/upload', {
-                          method: 'POST',
-                          headers: {
-                            'Content-Type': 'application/zip',
-                            'X-Project-Name': file.name.replace(/\.zip$/i, ''),
-                          },
-                          body: file,
-                        });
-                        const uploadData = await uploadRes.json();
-                        if (!uploadRes.ok) throw new Error(uploadData?.error || 'Upload failed');
-
-                        const scanRes = await fetch('/api/scans', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ repositoryId: uploadData.repository.id }),
-                        });
-                        const scanData = await scanRes.json();
-                        if (!scanRes.ok) throw new Error(scanData?.error || 'Scan failed');
-
-                        await loadData();
-                        showNotification(
-                          `Scan complete: ${scanData.findingsCount} findings found. Security Score: ${scanData.securityScore}/100`
-                        );
-                      } catch (err) {
-                        console.error('Upload/scan error:', err);
-                        showNotification(err instanceof Error ? err.message : 'Upload or scan failed');
-                      } finally {
-                        setIsScanning(false);
-                      }
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    id="btn-quick-download-csv"
+                    onClick={() => {
+                      exportFindingsToCSV(findings, repository?.name);
+                      showNotification(`Downloaded CSV report (${findings.length} findings).`);
                     }}
-                  />
-                </label>
+                    className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold cursor-pointer transition-colors shadow-sm"
+                    title="Download findings report as CSV"
+                  >
+                    <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+                    <span>Download CSV</span>
+                  </button>
+
+                  <button
+                    id="btn-quick-export-pdf"
+                    onClick={() => setIsReportModalOpen(true)}
+                    className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-cyan-950/80 hover:bg-cyan-900 text-cyan-300 border border-cyan-800 text-xs font-semibold cursor-pointer transition-colors shadow-sm"
+                    title="Open executive report to export PDF"
+                  >
+                    <FileText className="w-4 h-4 text-cyan-400" />
+                    <span>Export PDF</span>
+                  </button>
+
+                  <label className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-cyan-500 text-slate-950 text-xs font-bold cursor-pointer hover:bg-cyan-400 transition-colors">
+                    <Upload className="w-4 h-4" />
+                    {isScanning ? 'Scanning...' : 'Upload ZIP & Scan'}
+                    <input
+                      type="file"
+                      accept=".zip,application/zip"
+                      className="hidden"
+                      disabled={isScanning}
+                      onChange={async (event) => {
+                        const file = event.target.files?.[0];
+                        event.target.value = '';
+                        if (!file) return;
+                        if (file.size > 50 * 1024 * 1024) {
+                          showNotification('ZIP is too large. Maximum upload size is 50 MB.');
+                          return;
+                        }
+                        setIsScanning(true);
+                        showNotification(`Uploading ${file.name}...`);
+                        try {
+                          const uploadRes = await fetch('/api/repositories/upload', {
+                            method: 'POST',
+                            headers: {
+                              'Content-Type': 'application/zip',
+                              'X-Project-Name': file.name.replace(/\.zip$/i, ''),
+                            },
+                            body: file,
+                          });
+                          const uploadData = await uploadRes.json();
+                          if (!uploadRes.ok) throw new Error(uploadData?.error || 'Upload failed');
+
+                          const scanRes = await fetch('/api/scans', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ repositoryId: uploadData.repository.id }),
+                          });
+                          const scanData = await scanRes.json();
+                          if (!scanRes.ok) throw new Error(scanData?.error || 'Scan failed');
+
+                          await loadData();
+                          showNotification(
+                            `Scan complete: ${scanData.findingsCount} findings found. Security Score: ${scanData.securityScore}/100`
+                          );
+                        } catch (err) {
+                          console.error('Upload/scan error:', err);
+                          showNotification(err instanceof Error ? err.message : 'Upload or scan failed');
+                        } finally {
+                          setIsScanning(false);
+                        }
+                      }}
+                    />
+                  </label>
+                </div>
               </div>
             </div>
 
@@ -228,6 +256,8 @@ export default function App() {
               findings={findings}
               onSelectFinding={(f) => setSelectedFinding(f)}
               selectedFindingId={selectedFinding?.id}
+              repositoryName={repository?.name}
+              onOpenReportModal={() => setIsReportModalOpen(true)}
             />
           </div>
         )}
@@ -238,6 +268,15 @@ export default function App() {
         {/* Active Tab: Prevention Center */}
         {activeTab === 'prevention' && <PreventionCenter />}
       </main>
+
+      {/* Executive Security Audit & PDF Export Modal */}
+      <ReportModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        findings={findings}
+        repository={repository}
+        securityScore={securityScore}
+      />
 
       {/* Finding Detail & Remediation Modal */}
       {selectedFinding && (
